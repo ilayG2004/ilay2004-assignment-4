@@ -8,70 +8,30 @@ import nltk
 from nltk.corpus import stopwords
 
 nltk.download('stopwords')
+stop_words = stopwords.words('english')
 
 app = Flask(__name__)
 
 
 # TODO: Fetch dataset, initialize vectorizer and LSA here
-def create_term_document_matrix(query, documents):
-    #Think of query as a list ["machine","learning", "bicycle"]
-    '''  machine        learning        bicycle
-    doc1     0           1           2
-    doc2     1           0           2
-    doc3     0           0           0
-    '''
-    frequency_array = []
-    for doc in documents:
-        words = doc.lower().split()
-        #subarray for the document i, of how many times each word appears
-        #Assuming query is list. Within the entire document count the number of times a word in query appears
-        frequency_sublist = [words.count(word) for word in query]
-        frequency_array.append(frequency_sublist)
-    term_document_matrix = np.array(frequency_array)
-    return term_document_matrix
+newsgroups = fetch_20newsgroups(subset='all')
+data = newsgroups.data
+vectorizer = TfidfVectorizer(stop_words='english') 
+term_doc_matrix = vectorizer.fit_transform(data)
 
-def svd(tdm, rank):
-    T,S,D=np.linalg.svd(tdm,full_matrices=False)
-    '''
-    T: Term-to-concept matrix (left singular vectors).
-    Σ: A diagonal matrix of singular values, which represent the importance of the latent concepts.
-    D: Document-to-concept matrix (right singular vectors).
-    '''
-    T_reduced = T[:, :rank] #doc-to-concept similarity
-    S_reduced = np.diag(S[:rank]) #'strength' of each concept
-    D_reduced = D[:rank, :] #term-to-concept similarity
+'''         machine     learning       bicycle
+    doc1    0           1               2
+    doc2    1           0               2
+    doc3    0           5               0
+'''
 
-    compressed_tdm = np.dot(T_reduced, np.dot(S_reduced,D_reduced))
-    
-    return compressed_tdm, T_reduced, S_reduced, D_reduced
+def lsa(tdm, num_components):
+    svd_model = TruncatedSVD(n_components=num_components)
+    svd_matrix = svd_model.fit_transform(tdm)
 
-def project_query_to_latent_space(query, T_reduced):
-    #Frequency of each word across all documents
-    query_frequency = np.array([query.count(word) for word in query])
-    query_frequency = query_frequency.reshape(1, -1)  # Convert to 2D (1, n)
-    # Project the query frequency into the latent space
-    query_projected = np.dot(query_frequency, T_reduced)
-    
-    return query_projected
-
-def find_relevant_documents(query, T_reduced, D_reduced):
-    #Project the query into the latent space
-    query_projected = project_query_to_latent_space(query, T_reduced)
-    
-    #Calculate cosine similarity between the projected query (number of times a vocab word appears) 
-    #in the document to measure relevance of document
-    similarities = cosine_similarity([query_projected], D_reduced).flatten()
-
-    return similarities
-
-def get_top_relevant_documents(similarities, documents, top_k=5):
-    #Indices of the top 5 similar documents
-    top_indices = similarities.argsort()[-top_k:][::-1]
-    
-    #Retrieve the documents based on the top indices
-    relevant_docs = [(index, documents[index], similarities[index]) for index in top_indices]
-    
-    return top_indices
+    #'returns a vector of variance explained by each dimension'
+    explained_variance = svd_model.explained_variance_ratio_
+    return svd_matrix, explained_variance, svd_model
 
 def search_engine(query):
     """
@@ -79,17 +39,28 @@ def search_engine(query):
     Input: query (str)
     Output: documents (list), similarities (list), indices (list)
     """
-    newsgroups = fetch_20newsgroups(subset='all')
-    documents = newsgroups.data
+    #Perform lsa on term-document-matrix ()
+    svd_matrix, explained_variance, svd_model = lsa(term_doc_matrix, 110)
+    
+    query_matrix = vectorizer.transform([query])
+    query_lsa = svd_model.transform(query_matrix)
 
-    words = query.split() #Parse the query string into a list to be read later
+    #Have the lsa sparse matricies of all documents plus queries. Use cosine similarity to find the similarities to return top n documents
+    similarities = cosine_similarity(query_lsa, svd_matrix)
+    #Flatten similarities into 1D array so it can be read and sorted properly later
+    similarities = similarities.flatten()
 
-    tdm = create_term_document_matrix(words, documents)
-    compressed_tdm, T_reduced, S_reduced, D_reduced = svd(tdm, 110)
-    similarities = find_relevant_documents(words, T_reduced, D_reduced)
-    relevant_docs = get_top_relevant_documents(similarities,documents, 5)
 
-    return documents, similarities, relevant_docs
+    #Take the result from LSA and return a list of the top 10 documents
+    #array of integers of top 10 document indecies
+    top_doc_indicies = np.argsort(similarities)[-10:][::-1]
+    top_documents = []
+
+    for i in top_doc_indicies.tolist():
+        top_documents.append(data[i])
+    similarities = similarities[top_doc_indicies]
+
+    return top_documents, similarities.tolist(), top_doc_indicies.tolist()
 
 @app.route('/')
 def index():
