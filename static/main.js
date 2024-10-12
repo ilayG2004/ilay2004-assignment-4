@@ -1,6 +1,6 @@
 document.getElementById('search-form').addEventListener('submit', function (event) {
     event.preventDefault();
-    
+
     let query = document.getElementById('query').value;
     let resultsDiv = document.getElementById('results');
     resultsDiv.innerHTML = '';
@@ -14,12 +14,12 @@ document.getElementById('search-form').addEventListener('submit', function (even
             'query': query
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        console.log(data);
-        displayResults(data);
-        displayChart(data);
-    });
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            displayResults(data);
+            displayChart(data);
+        });
 });
 
 function displayResults(data) {
@@ -39,4 +39,29 @@ function displayChart(data) {
     //        - similarities (list) - list of similarities
     // TODO: Implement function to display chart here
     //       There is a canvas element in the HTML file with the id 'similarity-chart'
+    documents = data.documents
+    indices = data.indices
+    similarities = data.similarities
+
+    var xValues = indices
+    var yValues = similarities
+    var barColors = "red";
+
+    new Chart("similarity-chart", {
+        type: 'bar',
+        data: {
+            labels: xValues,
+            datasets: [{
+                backgroundColor: barColors,
+                data: yValues
+            }]
+        },
+        options: {
+            legend: { display: false },
+            title: {
+                display: true,
+                text: "Cosine Similarity"
+            }
+        }
+    });
 }
