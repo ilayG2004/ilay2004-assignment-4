@@ -32,6 +32,8 @@ function displayResults(data) {
     }
 }
 
+//Destroy & remake canvas when displayChart is ran again
+var similarityChart;
 function displayChart(data) {
     // Input: data (object) - contains the following keys:
     //        - documents (list) - list of documents
@@ -45,9 +47,13 @@ function displayChart(data) {
 
     var xValues = indices
     var yValues = similarities
-    var barColors = "red";
+    var barColors = "blue";
 
-    new Chart("similarity-chart", {
+    if (similarityChart) {
+        similarityChart.destroy(); //Create new instance so that the canvas is cleaned
+    }
+
+    similarityChart = new Chart("similarity-chart", {
         type: 'bar',
         data: {
             labels: xValues,
@@ -57,10 +63,12 @@ function displayChart(data) {
             }]
         },
         options: {
-            legend: { display: false },
-            title: {
-                display: true,
-                text: "Cosine Similarity"
+            plugins: {
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: "Cosine Similarity"
+                }
             }
         }
     });

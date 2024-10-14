@@ -51,9 +51,9 @@ def search_engine(query):
     similarities = similarities.flatten()
 
 
-    #Take the result from LSA and return a list of the top 10 documents
-    #array of integers of top 10 document indecies
-    top_doc_indicies = np.argsort(similarities)[-10:][::-1]
+    #Take the result from LSA and return a list of the top 5 documents
+    #array of integers of top 5 document indecies
+    top_doc_indicies = np.argsort(similarities)[-5:][::-1]
     top_documents = []
 
     for i in top_doc_indicies.tolist():
