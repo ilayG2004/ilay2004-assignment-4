@@ -1,0 +1,33 @@
+# This workflow will install Python dependencies, & start the LSA webapp
+
+name: LSA Search Engine Python application
+
+on: 
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: make install
+
+    - name: Run Flask Server & frontend
+      run: |
+        make run &
+        sleep 10
